@@ -53,7 +53,6 @@ cd adt_ml_sorting
 ```bash
 python -m venv venv
 # Activate it:
-# Windows: venv\Scripts\activate
 # Mac/Linux: source venv/bin/activate
 ```
 
