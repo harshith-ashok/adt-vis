@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sorting & Dynamic ML Prediction</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@5"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body>
+    <div class="navbar bg-base-100 shadow-sm">
+      <div class="flex-1">
+        <a class="btn btn-ghost text-xl"
+          >Sorting Animation & ML Search Prediction</a
+        >
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-5 p-20">
+      <div class="card bg-base-100 p-10 border-1 shadow-sm w-[75%]">
+        <h2 class="text-3xl font-bold">Bubble Sort</h2>
+        <div class="py-2 w-3/4">
+          Bubble Sort is a simple comparison-based algorithm that repeatedly
+          steps through the array, compares adjacent elements, and swaps them if
+          they are in the wrong order. It is easy to understand and visualize,
+          but less efficient for large datasets due to its O(n²) time
+          complexity. <span class="font-bold">Use in project:</span> Visualized
+          step-by-step to show how elements “bubble” to their correct positions.
+        </div>
+        <div id="bubble_sort" style="width: 80%; height: 400px"></div>
+      </div>
+      <div class="card bg-base-100 p-10 border-1 shadow-sm w-[75%]">
+        <h2 class="text-3xl font-bold">Merge Sort</h2>
+        <div class="py-2 w-3/4">
+          Merge Sort is a divide-and-conquer algorithm that splits the array
+          into halves, recursively sorts each half, and then merges the sorted
+          halves. It has a better efficiency of O(n log n), making it suitable
+          for larger arrays.
+          <span class="font-bold">Use in project:</span> Visualized to show how
+          the array is divided, sorted, and merged back.
+        </div>
+        <div
+          id="merge_sort"
+          style="width: 80%; height: 300px; margin: auto"
+        ></div>
+      </div>
+      <h2 class="text-3xl font-bold">Search a Number</h2>
+      <div class="flex gap-5">
+        <input id="target" type="number" placeholder="Number" class="input" />
+        <select class="select" id="algo">
+          <option disabled selected>Type of Search</option>
+          <option value="linear">Linear Search</option>
+          <option value="binary">Binary Search</option>
+        </select>
+        <input
+          id="full_size"
+          type="number"
+          placeholder="Enter full array size for ML"
+          value="250000"
+          class="input"
+        />
+        <button onclick="search()" class="btn">Search</button>
+      </div>
+      <p id="result"></p>
+
+      <h2 class="text-3xl font-bold">Dynamic ML Prediction Graph</h2>
+
+      <div class="flex gap-5">
+        <input
+          id="size_input"
+          type="text"
+          placeholder="Enter array sizes, comma-separated"
+          value="50,500,5000,50000,100000,250000"
+          class="input"
+        />
+        <button onclick="updateMLGraph()" class="btn">Update Graph</button>
+      </div>
+      <div class="flex-1">
+        <div
+          id="ml_graph"
+          style="width: 80%; height: 400px; margin: auto"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      let bubbleSteps = {{ bubble_steps | tojson }};
+      let mergeSteps = {{ merge_steps | tojson }};
+      let animArray = {{ anim_array | tojson }};
+
+      // Sorting animation
+      function animateSort(divId, steps){
+          let trace = {x: Array.from({length:steps[0].length},(_,i)=>i), y: steps[0], type:'bar'};
+          let layout = {title:divId, yaxis:{range:[0, Math.max(...steps[0])*1.1]}};
+          Plotly.newPlot(divId,[trace],layout);
+          let i=1;
+          function step(){
+              if(i<steps.length){
+                  Plotly.animate(divId,{data:[{y:steps[i]}]},{transition:{duration:50},frame:{duration:50,redraw:true}});
+                  i++; requestAnimationFrame(step);
+              }
+          }
+          step();
+      }
+      animateSort('bubble_sort',bubbleSteps);
+      animateSort('merge_sort',mergeSteps);
+
+      // Search function
+      function search(){
+          let target = document.getElementById("target").value;
+          let algo = document.getElementById("algo").value;
+          let full_size = document.getElementById("full_size").value;
+          fetch("/search",{
+              method:"POST",
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({target:target,algo:algo,arr:animArray,full_size:full_size})
+          })
+          .then(res=>res.json())
+          .then(data=>{
+            document.getElementById("result").innerHTML = `
+                <div class="overflow-x-auto rounded-box border bg-base-100 w-[25%]">
+                  <table class="table">
+                    <tbody>
+                      <!-- row 1 -->
+                      <tr>
+                        <th>Found at Index</th>
+                        <td>${data.index}</td>
+                      </tr>
+                      <!-- row 2 -->
+                      <tr>
+                        <th>Actual Time (smaller array)</th>
+                        <td>${data.time}</td>
+                      </tr>
+                      <!-- row 3 -->
+                      <tr>
+                        <th>Predicted Time</th>
+                        <td>${data.pred_time}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              `;
+          });
+      }
+
+      // Dynamic ML graph
+      function updateMLGraph(){
+          let sizes = document.getElementById("size_input").value.split(',').map(Number);
+          fetch("/ml_predict",{
+              method:"POST",
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({sizes:sizes})
+          })
+          .then(res=>res.json())
+          .then(data=>{
+              let trace1 = {x:sizes,y:data.linear,type:'scatter',name:'Linear Search'};
+              let trace2 = {x:sizes,y:data.binary,type:'scatter',name:'Binary Search'};
+              let layout = {title:'Predicted Search Time vs Array Size', xaxis:{title:'Array Size'}, yaxis:{title:'Time (s)', type:'log'}};
+              Plotly.newPlot('ml_graph',[trace1,trace2],layout);
+          });
+      }
+
+      // Initial graph
+      updateMLGraph();
+    </script>
+  </body>
+</html>

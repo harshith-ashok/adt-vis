@@ -1,6 +1,3 @@
-fastapi
-uvicorn
-scikit-learn
-matplotlib
-numpy
-joblib
+Flask>=2.3
+numpy>=1.26
+scikit-learn>=1.3
